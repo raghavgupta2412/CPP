@@ -16,6 +16,8 @@ string gcdOfStrings(string str1, string str2) {
                     int k= str1.size()/s.size();
                     for(int i=0;i<k;i++){
                         ans+=s;
+
+                        
                     }
                     if(ans==str1){
                         max=max.size()<s.size()?s:max;
