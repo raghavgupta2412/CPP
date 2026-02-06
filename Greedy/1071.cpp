@@ -10,7 +10,7 @@ string gcdOfStrings(string str1, string str2) {
                 string ans="";
                 for(int j=0;j<k;j++){
                     ans+=s;
-                }
+                } 
                 if(ans==str2){
                     string ans="";
                     int k= str1.size()/s.size();
