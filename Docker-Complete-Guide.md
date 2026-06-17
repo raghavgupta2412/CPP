@@ -3634,3 +3634,153 @@ A: Docker client sends the command to the daemon. The daemon checks for the imag
 **End of Guide**
 
 This guide covers Docker from the ground up through advanced topics. Practice each section's exercises in order, and you will be well-prepared for any Docker-related interview or real-world challenge.
+
+Node app.
+
+# Set a variable holding the full folder path inside your TEMP directory
+$dir = "$env:TEMP\docker-node-app"
+# Create that folder; -Force stops errors if it already exists; Out-Null hides output
+New-Item -ItemType Directory -Force -Path $dir | Out-Null
+# Move into the newly created folder so all files are written there
+Set-Location $dir
+
+# --- Write the Node.js web server source file (server.js) ---
+@'
+const http = require('http');
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Hello from Docker!\n');
+});
+server.listen(3000, () => console.log('Server running on port 3000'));
+'@ | Set-Content -Path server.js    # Save the above text into server.js
+
+# --- Write the Node project manifest (package.json) ---
+@'
+{
+  "name": "docker-demo",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" }
+}
+'@ | Set-Content -Path package.json    # Save the above text into package.json
+
+# --- Write the Dockerfile (the image build recipe) ---
+@'
+FROM node:18-alpine
+WORKDIR /app
+COPY package.json ./
+RUN npm install --production
+COPY server.js ./
+EXPOSE 3000
+USER node
+CMD ["node", "server.js"]
+'@ | Set-Content -Path Dockerfile    # Save the above text into Dockerfile
+
+# Build a Docker image from the Dockerfile and tag (name) it "node-demo"
+docker build -t node-demo .
+# Run the image as a background container, mapping host port 3000 -> container 3000
+docker run -d -p 3000:3000 --name node-app node-demo
+# Send an HTTP request to the running container to confirm it responds
+curl.exe http://localhost:3000
+# Stop the running container
+docker stop node-app
+# Delete the stopped container so the name "node-app" is free again
+docker rm node-app
+
+
+__________________________________________________________________________________________
+Flask App
+
+
+
+
+# Set a variable holding the full folder path inside your TEMP directory
+$dir = "$env:TEMP\docker-python-app"
+# Create that folder; -Force avoids errors if it exists; Out-Null hides output
+New-Item -ItemType Directory -Force -Path $dir | Out-Null
+# Move into that folder so files are written there
+Set-Location $dir
+
+# --- Write the Flask application source file (app.py) ---
+@'
+from flask import Flask
+app = Flask(__name__)
+@app.route('/')
+def hello():
+    return 'Hello from Docker Flask App!'
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+'@ | Set-Content -Path app.py    # Save the above text into app.py
+
+# --- Write the Python dependency list (requirements.txt) ---
+@'
+flask==3.0.0
+'@ | Set-Content -Path requirements.txt    # Save the above text into requirements.txt
+
+# --- Write the Dockerfile (the image build recipe) ---
+@'
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app.py ./
+EXPOSE 5000
+RUN useradd -r appuser && chown -R appuser /app
+USER appuser
+CMD ["python", "app.py"]
+'@ | Set-Content -Path Dockerfile    # Save the above text into Dockerfile
+
+# Build the image from the Dockerfile and tag it "flask-demo"
+docker build -t flask-demo .
+# Run the image in the background, mapping host port 5000 -> container 5000
+docker run -d -p 5000:5000 --name flask-app flask-demo
+# Send an HTTP request to confirm the Flask app responds
+curl.exe http://localhost:5000
+# Stop the running container
+docker stop flask-app
+# Delete the stopped container to free the name "flask-app"
+docker rm flask-app
+
+_________________________________________________________________________________________________________
+
+
+Multi Stage
+
+
+# Set a variable holding the full folder path inside your TEMP directory
+$dir = "$env:TEMP\docker-multistage"
+# Create that folder; -Force avoids errors if it exists; Out-Null hides output
+New-Item -ItemType Directory -Force -Path $dir | Out-Null
+# Move into that folder so the Dockerfile is written there
+Set-Location $dir
+
+# --- Write the multi-stage Dockerfile ---
+# (Stage 1 builds the file using a big node image; Stage 2 copies only the result
+#  into a tiny nginx image, so the final image stays small)
+@'
+# Stage 1: Build
+FROM node:18 AS builder
+WORKDIR /app
+RUN echo '<h1>Built with Multi-Stage Docker</h1>' > index.html
+# Stage 2: Production
+FROM nginx:alpine
+COPY --from=builder /app/index.html /usr/share/nginx/html/
+EXPOSE 80
+'@ | Set-Content -Path Dockerfile    # Save the above text into Dockerfile
+
+# Build the image from the Dockerfile and tag it "multistage-demo"
+docker build -t multistage-demo .
+# Show the image's size to confirm the multi-stage build kept it small
+docker images multistage-demo
+# Run the image in the background, mapping host port 8080 -> container port 80
+docker run -d -p 8080:80 --name ms-app multistage-demo
+# Send an HTTP request to confirm nginx serves the built page
+curl.exe http://localhost:8080
+# Stop the running container
+docker stop ms-app
+# Delete the stopped container to free the name "ms-app"
+docker rm ms-app
+
+
+
+
